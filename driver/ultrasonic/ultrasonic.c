@@ -1,13 +1,16 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include "hardware/gpio.h"
-#include "hardware/timer.h"
 
 // Define pins for ultrasonic sensor
 #define TRIG_PIN 0
 #define ECHO_PIN 1
 
 int timeout = 26100;
+
+volatile bool echoReceived = false;
+volatile absolute_time_t pulseStartTime;
+volatile absolute_time_t pulseEndTime;
 
 void setupUltrasonicPins(uint trigPin, uint echoPin) {
     gpio_init(trigPin);
@@ -16,38 +19,35 @@ void setupUltrasonicPins(uint trigPin, uint echoPin) {
     gpio_set_dir(echoPin, GPIO_IN);
 }
 
-volatile absolute_time_t pulseStartTime;
-volatile absolute_time_t pulseEndTime;
+void echo_isr(uint gpio, uint32_t events) {
+    if (events & GPIO_IRQ_EDGE_FALL) {
+        pulseEndTime = get_absolute_time();
+        echoReceived = true;
+    }
+}
 
-uint64_t getPulse(uint trigPin, uint echoPin)
-{
+uint64_t getPulse(uint trigPin, uint echoPin) {
     gpio_put(trigPin, 1);
     sleep_us(10);
     gpio_put(trigPin, 0);
 
-    uint64_t width = 0;
+    echoReceived = false;
 
-    while (gpio_get(echoPin) == 0) tight_loop_contents();
-    absolute_time_t startTime = get_absolute_time();
-    while (gpio_get(echoPin) == 1) 
-    {
-        width++;
-        sleep_us(1);
-        if (width > timeout) return 0;
+    // Enable the interrupt on the falling edge of the echo signal
+    gpio_set_irq_enabled_with_callback(echoPin, GPIO_IRQ_EDGE_FALL, true, echo_isr);
+
+    // Wait for the echo signal to be received
+    while (!echoReceived) {
+        tight_loop_contents();
     }
-    absolute_time_t endTime = get_absolute_time();
-    
-    return absolute_time_diff_us(startTime, endTime);
+
+    // Calculate the pulse length
+    return absolute_time_diff_us(pulseStartTime, pulseEndTime);
 }
 
 uint64_t getCm(uint trigPin, uint echoPin) {
     uint64_t pulseLength = getPulse(trigPin, echoPin);
     return pulseLength / 29 / 2; // Convert to centimeters
-}
-
-uint64_t getInch(uint trigPin, uint echoPin) {
-    uint64_t pulseLength = getPulse(trigPin, echoPin);
-    return pulseLength / 74.f / 2.f; // Convert to inches
 }
 
 int main() {
@@ -58,11 +58,14 @@ int main() {
 
     setupUltrasonicPins(trigPin, echoPin);
 
+    // Initialize pulseStartTime and pulseEndTime to the current time
+    pulseStartTime = get_absolute_time();
+    pulseEndTime = pulseStartTime;
+
     while (1) {
         uint64_t distanceCm = getCm(trigPin, echoPin);
-        uint64_t distanceInch = getInch(trigPin, echoPin);
 
-        printf("Distance: %lld cm, %lld inches\n", distanceCm, distanceInch);
+        printf("Distance: %lld cm ", distanceCm);
 
         sleep_ms(1000); // Wait for 1 second before the next measurement
     }
