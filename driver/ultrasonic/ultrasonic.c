@@ -10,7 +10,6 @@
 int timeout = 26100;
 
 // Variables to handle the ultrasonic sensor's echo signal
-volatile bool echoReceived = false;
 volatile absolute_time_t pulseStartTime;
 volatile absolute_time_t pulseEndTime;
 
@@ -22,33 +21,25 @@ void setupUltrasonicPins(uint trigPin, uint echoPin) {
     gpio_set_dir(echoPin, GPIO_IN);
 }
 
-// Interrupt service routine for handling the echo signal
-void echo_isr(uint gpio, uint32_t events) {
-    if (events & GPIO_IRQ_EDGE_FALL) {
-        pulseEndTime = get_absolute_time();
-        echoReceived = true;
-    }
-}
-
-// Function to generate a pulse and measure its length
-uint64_t getPulse(uint trigPin, uint echoPin) {
-    // Generate a short pulse on the TRIG pin
+uint64_t getPulse(uint trigPin, uint echoPin)
+{
     gpio_put(trigPin, 1);
     sleep_us(10);
     gpio_put(trigPin, 0);
 
-    echoReceived = false;
+    uint64_t width = 0;
 
-    // Enable the interrupt on the falling edge of the echo signal
-    gpio_set_irq_enabled_with_callback(echoPin, GPIO_IRQ_EDGE_FALL, true, echo_isr);
-
-    // Wait for the echo signal to be received
-    while (!echoReceived) {
-        tight_loop_contents();
+    while (gpio_get(echoPin) == 0) tight_loop_contents();
+    absolute_time_t startTime = get_absolute_time();
+    while (gpio_get(echoPin) == 1) 
+    {
+        width++;
+        sleep_us(1);
+        if (width > timeout) return 0;
     }
-
-    // Calculate the pulse length
-    return absolute_time_diff_us(pulseStartTime, pulseEndTime);
+    absolute_time_t endTime = get_absolute_time();
+    
+    return absolute_time_diff_us(startTime, endTime);
 }
 
 // Function to calculate distance in centimeters
@@ -77,7 +68,7 @@ int main() {
         uint64_t distanceCm = getCm(trigPin, echoPin);
 
         // Print the measured distance
-        printf("Distance: %lld cm ", distanceCm);
+        printf("Distance: %lld cm\n", distanceCm);
 
         // Wait for 1 second before the next measurement
         sleep_ms(1000);
