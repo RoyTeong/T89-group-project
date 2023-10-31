@@ -1,13 +1,12 @@
 /* 
-    Project Scope   : Uses an infrared (IR) sensor to sense the distance between white and black bars on a barcode.
-                    : Pico's ADC reads the analog output from the IR sensor connected to GPIO Pin 26
-                    : and generates a binary representation of the barcode pattern
-    Ouput           : Individual Character - 'W', 'w', 'B', 'b' (refer to Barcode pattern comment)
-                    :        Binary String - 0 is black, 1 is white
-                    :      Barcode Pattern - 'W' and 'w' represent white, 'B' and 'b' represent black.
-                    :                      - 'W' and 'B' represent bigger block, 'w' and 'b' represent smaller block
-                                
-    Last Update Date: 30/October/2023
+        Project Scope : Uses an infrared (IR) sensor to sense the distance between white and black bar on a barcode.
+                      : Pico's ADC reads the analog output from the IR sensor connected to GPIO Pin 26
+                      : and generates a binary representation of the barcode pattern
+                Ouput : Individual Character - 'W', 'w', 'B', 'b' (refer to Barcode pattern comment)
+                      :        Binary String - 0 is black, 1 is white
+                      :      Barcode Pattern - 'W' and 'w' represent white, 'B' and 'b' represent black.
+                      :                      - 'W' and 'B' represent bigger block, 'w' and 'b' represent smaller block
+    Last Updated Date : 30/October/2023
 */
 
 // Import the required libraries
@@ -23,8 +22,9 @@
 #define MAX_ARRAY_SIZE 100         // Maximum size for the sensor valus array
 
 // Variables to track and store the letter of the barcode (W,w,B,b)
-char barcode_letter_data_array[1000];         // Array to store the barcode pattern
-int current_barcode_pattern_count = 1; // Variable to track the number of each barcode bar type (white or black). -ve for white, +ve for black
+char barcode_letter_data_array[1000];        // Array to store the barcode pattern
+int current_barcode_pattern_count = 1;       // Variable to track the number of each barcode bar type (white or black) up to now
+                                             // -ve for white, +ve for black
 volatile uint16_t ir_sensor_value;           // Variable to store the IR sensor value
 
 // Define an array to store the sensor values
@@ -41,37 +41,36 @@ void adc_setup()
 // Timer callback function for IR sensor sampling
 bool ir_sensor_reading_for_barcode (struct repeating_timer *t)
 {
-    // Perform ADC reading from the IR sensor
-    adc_select_input(0); // Use ADC channel 0, you can change this if needed
+    // Perform ADC reading from the IR sensor using ADC channel 0
+    adc_select_input(0); 
     ir_sensor_value = adc_read();
 
-    // Store the value in the array and print when it's full
-
-    // If ir_sensor_value is more than 1000, it is considered as part of a barcode "black" region
-    // Update the sensor_values array with the 1 for black and update the white and based on the previous count 
-    if (ir_sensor_value > 1000)
+    // Update the sensor_values array with the 1 for black and update the white and based on the previous count
+    if (ir_sensor_value > 1000)   // If ir_sensor_value is more than 1000, it is considered as part of a barcode "black" region
     {
-        // Replace the corresponding position in the sensor_values arraywith 1 to represent black
+        // Replace the corresponding index position in the sensor_values array with 1 to represent barcode is now black
         sensor_values[sensor_values_count++] = 1;
 
-        // Check if the number of c
+        // If the current_barcode_pattern_count is less than 0, then the previous colour detected is white
         if (current_barcode_pattern_count < 0)
         {
-            // If more than 2 consecutive white line (based on sensor_values array), 
+            // If more than 2 consecutive white line (based on sensor_values array)
             if (current_barcode_pattern_count < -2)
             {
-                // When the value is big block white, append W to the barcode_letter_data_array
+                // This mean it is a big white block, so append "W" to barcode_letter_data_array
                 strcat(barcode_letter_data_array, "W");
+                // Print the "W"
                 printf("W\n");
             }
-            // If less than 2 consecutive black line (based on sensor_values array), 
+            // If less than 2 consecutive white line (based on sensor_values array), 
             else
             {
-                // When the value is small block white, append w to the barcode_letter_data_array
+                // This mean it is a small white block, so append "w" to barcode_letter_data_array
                 strcat(barcode_letter_data_array, "w");
+                // Print the "w" 
                 printf("w\n");
             }
-            //Reset current_barcode_pattern_count to 1
+            //Reset current_barcode_pattern_count to 1 
             current_barcode_pattern_count = 1;
         }
         // Switch to black 
@@ -80,30 +79,33 @@ bool ir_sensor_reading_for_barcode (struct repeating_timer *t)
             current_barcode_pattern_count += 1;
         }
     }
-    // Else if ir_sensor_vale is less than 1000, it is considered as part of a barcode "white" region
-    // Update the sensor_values array with the 0 for white and update the black and based on the previous count 
-    else
+    
+   // Update the sensor_values array with the 0 for white and update the black and based on the previous count
+    else // Else ir_sensor_vale is less than 1000, it is considered as part of a barcode "white" region
     {
-        // Replace the corresponding position in the sensor_values array with 0 to represent black
+        // Replace the corresponding index position in the sensor_values array with 1 to represent barcode is now black
         sensor_values[sensor_values_count++] = 0;
-        // 
+
+        // If the current_barcode_pattern_count is more than 0, then the previous colour detected is black
         if (current_barcode_pattern_count > 0)
         {
             // If more than 2 consecutive black line (based on sensor_values array), 
             if (current_barcode_pattern_count > 2)
             {
-                // When the value is big block black, append B to the barcode_letter_data_array
+                // This mean it is a big black block, so append "B" to barcode_letter_data_array
                 strcat(barcode_letter_data_array, "B");
+                // Print the "B"
                 printf("B\n");
             }
             // If less than 2 consecutive black line (based on sensor_values array), 
             else
             {
-                // When the value is small block black, append b to the barcode_letter_data_array
+                // This mean it is a small black block, so append "b" to barcode_letter_data_array
                 strcat(barcode_letter_data_array, "b");
+                // Print the "b"
                 printf("b\n");
             }
-            //Reset current_barcode_pattern_count to 0-1
+            //Reset current_barcode_pattern_count to -1
             current_barcode_pattern_count = -1;
         }
         // Switch to white
@@ -120,14 +122,14 @@ bool ir_sensor_reading_for_barcode (struct repeating_timer *t)
         char binaryString[101];
         for (int i = 0; i < 100; i++)
         {
-            // Converting the sensor_values
+            // Converting the sensor_values array from int to char, to create the string. 
             binaryString[i] = (sensor_values[i] == 0) ? '0' : '1';
         }
         binaryString[100] = '\0'; // Null-terminate the string
 
         // Output the binary string
-        printf("Binary String: %s\n", binaryString);
-        printf("Binary String: %s\n", barcode_letter_data_array);
+        printf("Binary String: %s\n", binaryString);                    // Print the binary String (0, 1)
+        printf("Binary String: %s\n", barcode_letter_data_array);       // Print the letter string (W, w, B, b)
 
         //Reset sensor_values_count to 0 to reset the array
         sensor_values_count = 0;
