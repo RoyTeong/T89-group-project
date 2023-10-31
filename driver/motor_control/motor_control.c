@@ -1,6 +1,9 @@
-/**
+/* 
+    Project Scope     : This code is designed for controlling the car with two wheels, allowing it to move in various direction
+    Ouput             : Motor will move forward, backward, left and right                               
+    Last Updated Date : 31/October/2023
+*/
 
- */
 
 // Include necessary libraries and header files
 #include <stdio.h>
