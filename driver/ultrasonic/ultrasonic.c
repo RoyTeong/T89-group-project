@@ -39,7 +39,7 @@ uint64_t measurePulse()
     gpio_put(TRIGGER_GPIO_PIN, 0); // Set TRIGGER pin back to LOW
 
     // Initialised the pulse width measurement variable
-    uint64_t width = 0;
+    uint64_t pulse_width = 0;
 
     // Wait for the ECHO pin to go HIGH, indicating the start of the ultrasonic pulse
     while (gpio_get(ECHO_GPIO_PIN) == 0) {
