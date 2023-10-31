@@ -1,8 +1,8 @@
 /*
-    Project Scope    : Reading values from an IR sensor at a regular intervals 
-                     : Print those values along with timestamps
-    Output           : hh:mm:ss:sss -> IR Sensor Value: <IR sensor value>
-    Last Update Date : 31 October
+        Project Scope : Reading values from an IR sensor at a regular intervals 
+                      : Print those values along with timestamps
+               Output : hh:mm:ss:sss - Print the time in hour, miniute, second, microsecond and the IR Sensor Value
+    Last Updated Date : 31/October/2023
 */
 
 // Import the required libraries 
@@ -11,6 +11,7 @@
 #include "hardware/adc.h"   // Pico SDK hardware library for ADC (Analog-to-Digital Conversion)
 #include "pico/time.h"      // Pico SDK library for time-related functions 
 
+// Define constant value 
 #define IR_SENSOR_PIN 26           // GPIO pin connected to the IR sensor
 #define ADC_SAMPLE_INTERVAL_MS 25  // Sampling interval for IR sensor (25ms)
 
@@ -30,7 +31,7 @@ void adc_setup() {
 // The function reads the IR sensor value and prints it along with a timestamp
 bool read_and_print_IR_sensory_value(struct repeating_timer *t) {
     
-    // Perform ADC reading from the IR sensor
+    // Perform ADC reading from the IR sensor using ADC channel 0
     adc_select_input(0); 
     ir_sensor_value = adc_read();
 
@@ -56,7 +57,6 @@ bool read_and_print_IR_sensory_value(struct repeating_timer *t) {
 }
 
 int main() {
-
     // Initialise standard I/O for console output
     stdio_init_all(); 
     // Set up the ADC for IR Sensor readings
@@ -64,7 +64,7 @@ int main() {
     
     // Set up a timer interrupt for IR sensor sampling every 25 ms
     struct repeating_timer timer;
-    // Interrupt every 25s and run the read_and_print_IR_sensory_value
+     // Run the read_and_print_IR_sensory_value function every 25ms interval
     add_repeating_timer_ms(ADC_SAMPLE_INTERVAL_MS, read_and_print_IR_sensory_value, NULL, &timer);
 
     while (true) {
