@@ -1,20 +1,30 @@
-/*
-
-
+/* 
+        Project Scope : An ultrasonic distance measurement system using a Pico microcontroller and ultrasonic sensor
+                      : Initialising the ultrasonic sensor, 
+                      : Mesuring the duration of ultrasonic pulse
+                      : Calculating the distance based on the pulse duration. 
+                      : Program continuously measures and displahy the distance in centimeters. 
+               
+                Ouput : Continuous stream of distance measurements in centimeters printed to serial console.
+                      : Disance: X cm  --> X is the distance in centimeters
+                    
+    Last Updated Date : 31/October/2023
 */
 
-//#include "ultrasonic_sensor.h"
-#include <stdio.h>
-#include "pico/stdlib.h"
-#include "hardware/gpio.h"
-#include "hardware/dma.h"
-#include "hardware/timer.h"
 
+// Import the neccessary libraries
+#include <stdio.h>          // Standard C library for I/O Operations
+#include "pico/stdlib.h"    // Pico Standard library for hardware access
+#include "hardware/gpio.h"  // To work with GPIO pins on Raspberry Pi Pico.
+#include "hardware/dma.h"   // Provide access to the Direct Memory Access (DMA) controller on the pico.
+#include "hardware/timer.h" // Give access to the timer hardware on the PIco. Can be used for various timing and interval-based tasks.
+
+//
 #define TRIGGER_GPIO_PIN 15
 #define ECHO_GPIO_PIN 14
-#define TIMEOUT 26100
+#define TIMEOUT 26100 //
 
-void ultrasonic_init() {
+void gpio_init() {
 
     //Initialised the the GPIO pin for Ultrasonic sensor
     gpio_init(TRIGGER_GPIO_PIN);
@@ -45,6 +55,7 @@ uint64_t measurePulse()
     while (gpio_get(ECHO_GPIO_PIN) == 0) {
         tight_loop_contents();
     }
+    
     //Record the start time
     absolute_time_t startTime = get_absolute_time(); 
 
@@ -57,6 +68,7 @@ uint64_t measurePulse()
         // Delay for 1 microsecond
         sleep_us(1);
 
+        //
         if (pulse_width > TIMEOUT) {
             printf("Pulse Width, %lld\n", pulse_width);
             return 0;
@@ -72,14 +84,18 @@ uint64_t measurePulse()
 // Calculate the distance in cm based on the pulse duration
 uint64_t calculateDistanceCm(uint64_t pulseLength)
 {
-    //
+    /*
+        Distance (in centimeter) = Speed of sound * 
+        pulseLength - time duration measured by the ultrasonic sensor 
+        29 - speed of sound in centimeter per microsecond
+        2  - to account the two-way travel of the pulse ( travel to the object and back to the sensor)
+    */
     return pulseLength / 29 / 2;
 }
 
 int main() {
-    // Initialize ultrasonic sensor
-    ultrasonic_init(); 
-
+    // Initialize gpio pin for the ultrasonic sensor
+    gpio_init()
 
     // 
     while (1) {
@@ -89,7 +105,8 @@ int main() {
         uint32_t distance_cm = calculateDistanceCm(pulse_duration); 
         // Print the distance. 
         printf("Distance: %d cm\n", distance_cm);
-        sleep_ms(1000); // Wait for 1 second before measuring again
+        // Sleep 1 second before measuring again
+        sleep_ms(1000); 
     }
 
     return 0;
