@@ -1,2 +1,3 @@
-# T89-group-project
+# T89 GROUP PROJECT
 
+### OBJECTIVES:
