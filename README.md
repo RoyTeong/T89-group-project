@@ -5,8 +5,6 @@
 - Configuration of infrared sensors
 - Incorporation of a PID controller
 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 ### EQUIPMENT:
 1. A laptop that has the Pico C/C++ SDK installed
 2. Raspberry Pico W
@@ -31,20 +29,12 @@
 21. Dynamo
 22. Brackets
 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 ## INTRODUCTION
 This project presents students with the task of designing an intelligent autonomous vehicle with two wheels, utilising the Raspberry Pi Pico microcontroller. The vehicle is equipped with a range of sensors and incorporates a PID (Proportional-Integral-Derivative) controller. The main objective of this project is to design and construct an autonomous robotic car capable of efficiently navigating a predetermined course while effectively avoiding obstacles and accurately identifying barcodes through the utilisation of infrared sensors. The incorporation of a Proportional-Integral-Derivative (PID) controller improves the control system of the automobile, guaranteeing seamless and precise movement while navigating and scanning barcodes.
 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 ## WIRING DIAGRAM
 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 ## LOGIC FLOWCHART
-
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ## DRIVERS
 
