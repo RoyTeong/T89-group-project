@@ -1,6 +1,6 @@
 # T89 GROUP PROJECT
 
-### GROUP MEMBERS;
+### GROUP MEMBERS:
 1. Joshua Loh Jun Wei 2203684
 2. Phua Tiffany 2202698
 3. Lim Xue Er 2203261
