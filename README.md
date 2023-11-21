@@ -1,5 +1,12 @@
 # T89 GROUP PROJECT
 
+### GROUP MEMBERS;
+1. Joshua Loh Jun Wei 2203684
+2. Phua Tiffany 2202698
+3. Lim Xue Er 2203261
+4. Clarissa Ow 2202555
+5. Roy Teong Ying Jun 2200507
+
 ### OBJECTIVES:
 - To create a robot car
 - Configuration of infrared sensors
