@@ -44,17 +44,17 @@ This project presents students with the task of designing an intelligent autonom
 ## BLOCK DIAGRAM
 ![Block Diagram](https://github.com/RoyTeong/T89-group-project/assets/115625499/7827ba22-0a25-4b2c-a4c8-6cb14bd7643f)
 
-
+<br>
 
 ## DATA FLOW DIAGRAM
 ![GRP_89 - Dataflow](https://github.com/RoyTeong/T89-group-project/assets/115625499/034b270a-cb9e-4acc-ae71-7451336df16f)
 
-
+<br>
 
 ## FLOWCHART DIAGRAM
 ![GRP_89 - Flowchart](https://github.com/RoyTeong/T89-group-project/assets/115625499/74272e1f-f188-4b9f-9002-98b4a669e6a1)
 
-
+<br>
 
 ## DRIVERS
 
