@@ -57,8 +57,6 @@ This project presents students with the task of designing an intelligent autonom
 ## FLOWCHART DIAGRAM
 ![GRP_89 - Flowchart](https://github.com/RoyTeong/T89-group-project/assets/115625499/74272e1f-f188-4b9f-9002-98b4a669e6a1)
 
-<br>
-
 ## DRIVERS
 
 ### Line Tracking Sensor Module (IR Sensor)
