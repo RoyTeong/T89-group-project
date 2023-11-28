@@ -69,10 +69,14 @@ This project presents students with the task of designing an intelligent autonom
 <br>
 
 ### Counting Speed Sensor Module (Magnetometer Sensor)
-The magnetometer is a specialized instrument used to measure and track the velocity of objects in motion or their rotational speed.   This sensor utilizes magnetometer technology to detect alterations in magnetic fields linked to motion, facilitating accurate counting and speed computations.  
+The magnetometer is a specialized instrument used to measure and track the velocity of objects in motion or their rotational speed.   This sensor utilizes magnetometer technology to detect alterations in magnetic fields linked to motion, facilitating accurate counting and speed computations.
+
+<br>
 
 ### Ultrasonic Distance Sensor Module
 The Ultrasonic Distance Sensor Module is a technological device that employs ultrasonic waves for the purpose of measuring distances.  It emits ultrasonic pulses and measures the time it takes for the pulses to return after hitting an object.   The sensor precisely calculates the distance to the object by examining the time delay.   Ultrasonic Distance Sensor Modules have extensive applications in various systems and devices for detecting obstacles, aiding in navigation, and sensing proximity.
+
+<br>
 
 ### Motor Controller & DC Motor
 The motor controller functions as the central control unit, overseeing the operation of the DC motor by regulating electrical inputs. They allow for accurate control of motor speed, direction, and torque.   The harmonious interaction between the motor controller and DC motor is crucial for effectively and efficiently providing power to a wide variety of machinery and devices. 
