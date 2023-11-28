@@ -7,11 +7,14 @@
 4. Clarissa Ow 2202555
 5. Roy Teong Ying Jun 2200507
 
+<br>
+
 ### OBJECTIVES:
 - To create a robot car
 - Configuration of infrared sensors
 - Incorporation of a PID controller
 
+<br>
 
 ### EQUIPMENT:
 1. A laptop that has the Pico C/C++ SDK installed
