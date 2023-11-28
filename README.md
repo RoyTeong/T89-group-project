@@ -12,7 +12,6 @@
 - Configuration of infrared sensors
 - Incorporation of a PID controller
 
-<br>
 
 ### EQUIPMENT:
 1. A laptop that has the Pico C/C++ SDK installed
