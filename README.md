@@ -6,7 +6,6 @@
 3. Lim Xue Er 2203261
 4. Clarissa Ow 2202555
 5. Roy Teong Ying Jun 2200507
-
 <br>
 
 ### OBJECTIVES:
