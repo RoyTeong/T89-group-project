@@ -65,7 +65,7 @@ This project presents students with the task of designing an intelligent autonom
 2 sensors are used to locate and track a given line or path on a surface. The sensor can make real-time modifications to a robot's or vehicle's movement by using infrared technology to detect the contrast between the line and its background.
 
 1 sensor is employed for the purpose of reading barcodes. It systematically records the time of the scanning process and discriminates between the white and black segments of the barcode. All these are recorded in binary and concatenated together to decode it as a whole. This ensures data retrieval is accurate and efficient.
-
+<br>
 ### Counting Speed Sensor Module (Magnetometer Sensor)
 The magnetometer is a specialized instrument used to measure and track the velocity of objects in motion or their rotational speed.   This sensor utilizes magnetometer technology to detect alterations in magnetic fields linked to motion, facilitating accurate counting and speed computations.  
 
