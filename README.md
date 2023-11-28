@@ -7,12 +7,13 @@
 4. Clarissa Ow 2202555
 5. Roy Teong Ying Jun 2200507
 
+<br>
 ### OBJECTIVES:
 - To create a robot car
 - Configuration of infrared sensors
 - Incorporation of a PID controller
 
-
+<br>
 ### EQUIPMENT:
 1. A laptop that has the Pico C/C++ SDK installed
 2. Raspberry Pico W
@@ -37,15 +38,15 @@
 21. Dynamo
 22. Brackets
 
-
+<br>
 ## INTRODUCTION
 This project presents students with the task of designing an intelligent autonomous vehicle with two wheels, utilising the Raspberry Pi Pico microcontroller. The vehicle is equipped with a range of sensors and incorporates a PID (Proportional-Integral-Derivative) controller. The main objective of this project is to design and construct an autonomous robotic car capable of efficiently navigating a predetermined course while effectively avoiding obstacles and accurately identifying barcodes through the utilisation of infrared sensors. The incorporation of a Proportional-Integral-Derivative (PID) controller improves the control system of the automobile, guaranteeing seamless and precise movement while navigating and scanning barcodes.
 
+<br>
 ## BLOCK DIAGRAM
 ![Block Diagram](https://github.com/RoyTeong/T89-group-project/assets/115625499/7827ba22-0a25-4b2c-a4c8-6cb14bd7643f)
 
 <br>
-
 ## DATA FLOW DIAGRAM
 ![GRP_89 - Dataflow](https://github.com/RoyTeong/T89-group-project/assets/115625499/034b270a-cb9e-4acc-ae71-7451336df16f)
 
@@ -55,7 +56,6 @@ This project presents students with the task of designing an intelligent autonom
 ![GRP_89 - Flowchart](https://github.com/RoyTeong/T89-group-project/assets/115625499/74272e1f-f188-4b9f-9002-98b4a669e6a1)
 
 <br>
-
 ## DRIVERS
 
 ### Line Tracking Sensor Module (IR Sensor)
