@@ -8,7 +8,6 @@
 5. Roy Teong Ying Jun 2200507
 
 <br>
-
 ### OBJECTIVES:
 - To create a robot car
 - Configuration of infrared sensors
