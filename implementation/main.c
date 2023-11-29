@@ -482,10 +482,10 @@ void interrupt_handler(uint gpio, uint32_t events)
  */
 bool ultrasonic_sensor_handler()
 {
-    float pulse_duration = getPulseDuration(); // Measure the duration of the echo pulse
+    float pulse_duration = get_pulse_duration(); // Measure the duration of the echo pulse
     if (pulse_duration != 0.0)
     {
-        float distance_cm = calculateDistance(pulse_duration); // Calculate distance in centimeters
+        float distance_cm = measure_distance(pulse_duration); // Calculate distance in centimeters
         if (distance_cm <= 5.0)
         {
             printf("Too close to a wall\n");
@@ -506,9 +506,9 @@ bool ultrasonic_sensor_handler()
  */
 uint32_t runUltrasonic()
 {
-    uint32_t pulse_duration = measurePulse();
+    uint32_t pulse_duration = get_pulse_duration();
     // Measure distance in centimeters
-    uint32_t distance_cm = calculateDistanceCm(pulse_duration);
+    uint32_t distance_cm = calculate_distance_cm(pulse_duration);
     // Print the distance.
     printf("Distance: %d cm\n", distance_cm);
 
