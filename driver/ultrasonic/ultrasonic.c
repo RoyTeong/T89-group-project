@@ -1,12 +1,12 @@
 /* 
         Project Scope : An ultrasonic distance measurement system using a Pico microcontroller and ultrasonic sensor
                       : Initialising the ultrasonic sensor, 
-                      : Mesuring the duration of ultrasonic pulse
+                      : Measuring the duration of ultrasonic pulse
                       : Calculating the distance based on the pulse duration. 
-                      : Program continuously measures and displahy the distance in centimeters. 
+                      : Program continuously measures and display the distance in centimeters. 
                
                 Ouput : Continuous stream of distance measurements in centimeters printed to serial console.
-                      : Disance: X cm  --> X is the distance in centimeters
+                      : Distance: X cm  --> X is the distance in centimeters
                     
     Last Updated Date : 31/October/2023
 */
@@ -41,7 +41,7 @@ void gpio_init() {
 }
 
 // Measure the duration of the ultrasonic pulse and return in microseconds
-uint64_t measurePulse()
+uint64_t calculate_pulse()
 {
     // Activate the ultrasonice sensor by sending a brief HIGH signal (pulse) on the trigger pin 
     gpio_put(TRIGGER_GPIO_PIN, 1); // Set TRIGGER pin to HIGH
@@ -100,7 +100,7 @@ int main() {
     // 
     while (1) {
         // Measure the pulse duration
-        uint32_t pulse_duration = measurePulse(); 
+        uint32_t pulse_duration = calculate_pulse(); 
         // Measure distance in centimeters
         uint32_t distance_cm = calculateDistanceCm(pulse_duration); 
         // Print the distance. 

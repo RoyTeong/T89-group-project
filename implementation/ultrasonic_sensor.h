@@ -23,17 +23,17 @@
 #define TIMEOUT 26100 
 
 // Variables to measure the pulse
-uint32_t pulse_start_time = 0; // Variable to store the start time of the echo pulse
-uint32_t pulse_end_time = 0;   // Variable to store the end time of the echo pulse
+uint32_t start_pulse_time = 0; // Variable to store the start time of the echo pulse
+uint32_t end_pulse_time = 0;   // Variable to store the end time of the echo pulse
 bool pulse_received = false;   // Flag to indicate if an echo pulse has been received
 
 // Function prototypes
 void interrupt_handler(uint gpio, uint32_t events);
-bool checkPulseTimes(uint32_t start_time, uint32_t end_time);
+bool check_pulse_duration(uint32_t start_time, uint32_t end_time);
 void on_echo_pin_change(uint gpio, uint32_t events);
-uint32_t getPulseDuration();
+uint32_t get_pulse_duration();
 void initialise_ultrasonic();
-float calculateDistance(float pulse_duration);
+float measure_distance(float pulse_duration);
 
 
 /**
@@ -43,7 +43,7 @@ float calculateDistance(float pulse_duration);
  * @param end_time The end time of the pulse.
  * @return true if start time is less than end time, false otherwise.
  */
-bool checkPulseTimes(uint32_t start_time, uint32_t end_time)
+bool check_pulse_duration(uint32_t start_time, uint32_t end_time)
 {
     // Check if start time is less than end time
     if (start_time < end_time)
@@ -69,14 +69,14 @@ void on_echo_pin_change(uint gpio, uint32_t events)
     if (gpio_get(ECHO_PIN))
     {
         // Record the start time of the echo pulse
-        pulse_start_time = time_us_32(); 
+        start_pulse_time = time_us_32(); 
     }
     else
     {
         // Record the end time of the echo pulse
-        pulse_end_time = time_us_32();
+        end_pulse_time = time_us_32();
         // Set the flag to indicate that the echo pulse has been received                                      
-        pulse_received = checkPulseTimes(pulse_start_time, pulse_end_time); 
+        pulse_received = check_pulse_duration(start_pulse_time, end_pulse_time); 
     }
 }
 
@@ -96,7 +96,7 @@ void initialise_ultrasonic()
 /**
  * @brief Shoot a trigger pulse to activate the ultrasonic sensor.
  */
-void shoot_pulse()
+void launch_pulse()
 {
     gpio_put(TRIGGER_PIN, true);  // Send a trigger pulse
     sleep_us(10);                 // Wait for 10 microseconds
@@ -108,7 +108,7 @@ void shoot_pulse()
  *
  * @return The pulse duration in microseconds.
  */
-uint32_t getPulseDuration()
+uint32_t get_pulse_duration()
 {
     pulse_received = false;       // Reset the pulse received flag
     gpio_put(TRIGGER_PIN, true);  // Send a trigger pulse
@@ -122,7 +122,7 @@ uint32_t getPulseDuration()
         tight_loop_contents(); // Wait without consuming CPU cycles
     }
 
-    return pulse_received ? pulse_end_time - pulse_start_time : 0.0;
+    return pulse_received ? end_pulse_time - start_pulse_time : 0.0;
 }
 
 /**
@@ -131,7 +131,7 @@ uint32_t getPulseDuration()
  * @param pulse_duration The duration of the ultrasonic pulse in microseconds.
  * @return The distance in centimeters.
  */
-float calculateDistance(float pulse_duration)
+float measure_distance(float pulse_duration)
 {
     // Speed of sound at sea level is approximately 343 meters per second or 34300 centimeters per second
     // Distance = (Speed of sound * Pulse duration) / 2
@@ -143,7 +143,7 @@ float calculateDistance(float pulse_duration)
  *
  * @return The pulse duration in microseconds.
  */
-uint64_t measurePulse()
+uint64_t calculate_pulse()
 {
     // Activate the ultrasonice sensor by sending a brief HIGH signal (pulse) on the trigger pin 
     gpio_put(TRIGGER_GPIO_PIN, 1); // Set TRIGGER pin to HIGH
@@ -159,7 +159,7 @@ uint64_t measurePulse()
     }
     
     //Record the start time
-    absolute_time_t startTime = get_absolute_time(); 
+    absolute_time_t start_time = get_absolute_time(); 
 
     // Measure the duration of the ECHO pulse (high signal )
     while (gpio_get(ECHO_GPIO_PIN) == 1) 
@@ -177,10 +177,10 @@ uint64_t measurePulse()
         }
     }
     // Record the end time
-    absolute_time_t endTime = get_absolute_time();
+    absolute_time_t end_time = get_absolute_time();
     
-    // Calculateand return the pulse duration in microseconds.
-    return absolute_time_diff_us(startTime, endTime);
+    // Calculate and return the pulse duration in microseconds.
+    return absolute_time_diff_us(start_time, end_time);
 }
 
 /**
@@ -189,7 +189,7 @@ uint64_t measurePulse()
  * @param pulseLength The duration of the ultrasonic pulse in microseconds.
  * @return The distance in centimeters.
  */
-uint64_t calculateDistanceCm(uint64_t pulseLength)
+uint64_t calculate_distance_cm(uint64_t pulseLength)
 {
     /*
         Distance (in centimeter) = Speed of sound * 
