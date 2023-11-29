@@ -1,52 +1,89 @@
+/**
+ * @file ultrasonic_sensor.h
+ * @brief Header file for ultrasonic sensor .
+ *
+ * @details
+ * This module provides functions to interface with an ultrasonic sensor for distance measurement using pulse-width measurement
+ *
+ * @date October 27, 2023
+ */
+
 #include <stdio.h>          // Include standard input-output library
 #include "pico/stdlib.h"    // Include the Pico standard library
 #include "hardware/gpio.h"  // Include the GPIO hardware library
 #include "hardware/timer.h" // Include the timer hardware library
 
-#define TRIGGER_PIN 0 // Define the GPIO pin for the ultrasonic sensor trigger
-#define ECHO_PIN 1    // Define the GPIO pin for the ultrasonic sensor echo
-#define TRIGGER_GPIO_PIN 0
-#define ECHO_GPIO_PIN 1
-#define TIMEOUT 26100 //
+// Define the GPIO pin for ultrasonic
+#define TRIGGER_PIN 0       // Define the GPIO pin for the ultrasonic sensor trigger
+#define ECHO_PIN 1          // Define the GPIO pin for the ultrasonic sensor echo
+#define TRIGGER_GPIO_PIN 0  // Define the GPIO pin for the ultrasonic sensor trigger
+#define ECHO_GPIO_PIN 1     // Define the GPIO pin for the ultrasonic sensor echo
 
+// Define the timeout for pulse measurement in microseconds
+#define TIMEOUT 26100 
+
+// Variables to measure the pulse
 uint32_t pulse_start_time = 0; // Variable to store the start time of the echo pulse
 uint32_t pulse_end_time = 0;   // Variable to store the end time of the echo pulse
 bool pulse_received = false;   // Flag to indicate if an echo pulse has been received
 
+// Function prototypes
 void interrupt_handler(uint gpio, uint32_t events);
 bool checkPulseTimes(uint32_t start_time, uint32_t end_time);
 void on_echo_pin_change(uint gpio, uint32_t events);
 uint32_t getPulseDuration();
-void ultrasonic_init();
+void initialise_ultrasonic();
 float calculateDistance(float pulse_duration);
 
+
+/**
+ * @brief Check if the start time is less than the end time.
+ *
+ * @param start_time The start time of the pulse.
+ * @param end_time The end time of the pulse.
+ * @return true if start time is less than end time, false otherwise.
+ */
 bool checkPulseTimes(uint32_t start_time, uint32_t end_time)
 {
     // Check if start time is less than end time
     if (start_time < end_time)
     {
-        return true; // Valid pulse times
+        // Valid pulse times
+        return true; 
     }
     else
     {
-        return false; // Invalid pulse times
+        // Invalid pulse times
+        return false; 
     }
 }
 
+/**
+ * @brief Callback function for handling changes on the ECHO pin.
+ *
+ * @param gpio The GPIO pin number.
+ * @param events The type of events that triggered the callback.
+ */
 void on_echo_pin_change(uint gpio, uint32_t events)
 {
     if (gpio_get(ECHO_PIN))
     {
-        pulse_start_time = time_us_32(); // Record the start time of the echo pulse
+        // Record the start time of the echo pulse
+        pulse_start_time = time_us_32(); 
     }
     else
     {
-        pulse_end_time = time_us_32();                                      // Record the end time of the echo pulse
-        pulse_received = checkPulseTimes(pulse_start_time, pulse_end_time); // Set the flag to indicate that the echo pulse has been received
+        // Record the end time of the echo pulse
+        pulse_end_time = time_us_32();
+        // Set the flag to indicate that the echo pulse has been received                                      
+        pulse_received = checkPulseTimes(pulse_start_time, pulse_end_time); 
     }
 }
 
-void ultrasonic_init()
+/**
+ * @brief Initialize the ultrasonic sensor GPIO pins.
+ */
+void initialise_ultrasonic()
 {
     gpio_init(TRIGGER_PIN);              // Initialize the trigger pin
     gpio_init(ECHO_PIN);                 // Initialize the echo pin
@@ -56,6 +93,9 @@ void ultrasonic_init()
     // Enable interrupt on both rising and falling edges of the echo pulse
 }
 
+/**
+ * @brief Shoot a trigger pulse to activate the ultrasonic sensor.
+ */
 void shoot_pulse()
 {
     gpio_put(TRIGGER_PIN, true);  // Send a trigger pulse
@@ -63,6 +103,11 @@ void shoot_pulse()
     gpio_put(TRIGGER_PIN, false); // Stop the trigger pulse
 }
 
+/**
+ * @brief Get the duration of the received pulse.
+ *
+ * @return The pulse duration in microseconds.
+ */
 uint32_t getPulseDuration()
 {
     pulse_received = false;       // Reset the pulse received flag
@@ -80,6 +125,12 @@ uint32_t getPulseDuration()
     return pulse_received ? pulse_end_time - pulse_start_time : 0.0;
 }
 
+/**
+ * @brief Calculate the distance from the measured pulse duration.
+ *
+ * @param pulse_duration The duration of the ultrasonic pulse in microseconds.
+ * @return The distance in centimeters.
+ */
 float calculateDistance(float pulse_duration)
 {
     // Speed of sound at sea level is approximately 343 meters per second or 34300 centimeters per second
@@ -87,20 +138,11 @@ float calculateDistance(float pulse_duration)
     return (float)(pulse_duration * 34300) / (2 * 1000000); // Convert microseconds to seconds (10^6) and calculate distance in centimeters
 }
 
-void gpio_init2() {
-
-    //Initialised the the GPIO pin for Ultrasonic sensor
-    gpio_init(TRIGGER_GPIO_PIN);
-    gpio_init(ECHO_GPIO_PIN);
-
-    // Set TRIGGER_GPIO_PIN, GPIO pin 15 as output
-    gpio_set_dir(TRIGGER_GPIO_PIN, GPIO_OUT);
-
-    // Set ECHO_GPIO_PIN, GPIO pin 14 as input
-    gpio_set_dir(ECHO_GPIO_PIN, GPIO_IN);
-}
-
-// Measure the duration of the ultrasonic pulse and return in microseconds
+/**
+ * @brief Measure the duration of the ultrasonic pulse and return in microseconds.
+ *
+ * @return The pulse duration in microseconds.
+ */
 uint64_t measurePulse()
 {
     // Activate the ultrasonice sensor by sending a brief HIGH signal (pulse) on the trigger pin 
@@ -141,7 +183,12 @@ uint64_t measurePulse()
     return absolute_time_diff_us(startTime, endTime);
 }
 
-// Calculate the distance in cm based on the pulse duration
+/**
+ * @brief Calculate the distance in centimeters based on the pulse duration.
+ *
+ * @param pulseLength The duration of the ultrasonic pulse in microseconds.
+ * @return The distance in centimeters.
+ */
 uint64_t calculateDistanceCm(uint64_t pulseLength)
 {
     /*
