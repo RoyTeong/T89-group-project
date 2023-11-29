@@ -1,382 +1,560 @@
-#define ENCODEROUT_PIN 2
-#define ENCODEROUT_PIN2 3
-#define DISTANCE_BETWEEN_NOTCHES_CM 1.0525
+/**
+ * @file motor.h
+ * @brief Header file for wheel and encoder 
+ * @details This file contains declaration for functions and variables relate
+ * 
+ * @date October 27, 2023
+ */
 
-// PID Constants
-#define KP 0.1
-#define KI 10
-#define KD 1
 
-double integral_left = 0;
-double prev_error_left = 0;
-double derivative_left = 0;
+#ifndef MOTOR_H
+#define MOTOR_H
 
-double integral_right = 0;
-double prev_error_right = 0;
-double derivative_right = 0;
+#include "pico/stdlib.h"
+#include "hardware/gpio.h"
+#include "hardware/pwm.h"
+#include <stdbool.h>
+#include "pico/time.h"
+#include <math.h>
 
-int left_desired_speed_cm_s = 40;
-int right_desired_speed_cm_s = 40;
+#include "magnetometer.h"
 
-bool turning_left;
-bool turning_right;
-float degree;
-float degree_turned;
-float degree_to_turn;
-float distance_to_inch;
-char strVal[50] = "abc";
+// Global variables for GPIO Pin
+uint8_t left_encoder_pin = 2; 
+uint8_t right_encoder_pin = 3;
+uint8_t motor_enable_pin_A = 15;
+uint8_t motor_enable_pin_B = 10;
+uint8_t input_1 = 14;
+uint8_t input_2 = 13;
+uint8_t input_3 = 12;
+uint8_t input_4 = 11;
 
-uint32_t time_of_prev_notch[2] = {0, 0};
-__long_double_t distance[2] = {0, 0};
-double speed[2] = {0, 0};
-__long_double_t prev_distance[2] = {0, 0};
-bool inching = false;
-double distance_after_blackline[2] = {0, 0};
+// Function prototypes
+void move_forward(float speed);
+void move_backward(float speed);
+void turn_left(float speed, float angle);
+void turn_right(float speed, float angle);
+void stop_motors();
+void initialise_motors(uint8_t left_motor_pin1, uint8_t left_motor_pin2, uint8_t right_motor_pin1, uint8_t right_motor_pin2, uint8_t left_motor_pwm_pin, uint8_t right_motor_pwm_pin, uint8_t encoder_left_pin, uint8_t encoder_right_pin);
 
-void interrupt_handler(uint gpio, uint32_t events);
-void start_motor(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2);
-void start_motor_pwm(int leftmotor_pwm_pin, int rightmotor_pwm_pin);
-void stop_motor(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2);
-void move_forward(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2);
-void move_backward(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2);
-void turn_left(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2, float degree);
-void turn_right(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2, float degree);
-void set_speed(int speed, int leftmotor_pwm_pin, int rightmotor_pwm_pin);
-void calculate_speed(uint32_t time_of_notch, int encoder_number);
-void gpio_callback(uint gpio, uint32_t events);
-bool check_wheel_moving(struct repeating_timer *t);
-bool pid(struct repeating_timer *t);
-void init_encoder(int encoder_pin, int encoder_pin2);
+float start_heading = 0.0;
+float current_heading = 0.0;
+float target_heading = 0.0;
+float set_heading = 0.0;
+volatile int left_encoder_count = 0;
+volatile int right_encoder_count = 0;
+double left_encoder_speed = 0.0;
+double right_encoder_speed = 0.0;
+
+volatile char movement_direction = 'x'; // w = forward, s = backward, a = left, d = right, x = stop
+
+float kp = 0.1;  // Proportional gain
+float ki = 0.01; // Integral gain
+float kd = 0.01; // Derivative gain
+float I = 0.0;   // Integral term
+float P = 0.0;   // Proportional term
+float D = 0.0;   // Derivative term
+
+#define SPEED 6250
+#endif // MOTOR_H
 
 /**
- * @brief PID function
- *
- * This function is called every 50ms to calculate the PID values for the left and right motors.
- * The PID values are then used to set the speed of the motors.
- * This function ensures motors are moving at the desired speed.
+ * @brief Function to set the speed of the left and right motors.
+ * @param left_motor_speed Speed of the left motor.
+ * @param right_motor_speed Speed of the right motor.
  */
-bool pid(struct repeating_timer *t)
+void set_speed(float left_motor_speed, float right_motor_speed)
 {
-    double error_left = left_desired_speed_cm_s - speed[0];
-    integral_left += error_left;
-    derivative_left = error_left - prev_error_left;
-    prev_error_left = error_left;
-
-    double error_right = right_desired_speed_cm_s - speed[1];
-    integral_right += error_right;
-    derivative_right = error_right - prev_error_right;
-    prev_error_right = error_right;
-
-    double left_motor_speed = KP * error_left + KI * integral_left + KD * derivative_left;
-    double right_motor_speed = KP * error_right + KI * integral_right + KD * derivative_right;
-
-    pwm_set_gpio_level(15, left_motor_speed);
-    pwm_set_gpio_level(10, right_motor_speed);
-
-    return true;
+    // Set the PWM channels
+    pwm_set_gpio_level(motor_enable_pin_A, left_motor_speed);
+    pwm_set_gpio_level(motor_enable_pin_B, right_motor_speed);
 }
 
 /**
- * @brief Main function to calculate speed of wheels.
- *
- * This function is called on a interrupt when the encoder notch is detected. (Rising Edge)
- * It calculates the speed of the wheel and distance travelled, updating the global variables.
+ * @brief Function to calculate a new heading after a turn.
+ * @param current_heading Current heading.
+ * @param angle Angle of the turn.
+ * @param is_left_turn Boolean indicating if it's a left turn.
+ * @return The new heading after the turn.
  */
-void calculate_speed(uint32_t time_of_notch, int encoder_number)
+float calculate_new_heading(float current_heading, float angle, bool is_left_turn)
 {
-    // If Encoder Pin is 2, index is 0
-    // If Encoder Pin is 3, index is 1
-    int index = encoder_number == ENCODEROUT_PIN ? 0 : 1;
-
-    if (turning_left == true)
+    // Check if it's a left turn
+    if (!is_left_turn)
     {
-        degree_turned += 4.5;
-        if (degree_turned >= degree_to_turn)
-        {
-            turning_left = false;
-            degree_turned = 0;
-            stop_motor(14, 13, 12, 11);
-            printf("Turned left by %d degrees\n", degree_to_turn);
-        }
-    }
-    else if (turning_right == true)
-    {
-        degree_turned += 4.5;
-        if (degree_turned >= degree_to_turn)
-        {
-            turning_right = false;
-            degree_turned = 0;
-            stop_motor(14, 13, 12, 11);
-            printf("Turned right by %d degrees\n", degree_to_turn);
-        }
-    }
+        // Calculate the new heading after a right turn
+        float new_heading = current_heading + angle;
 
-    if (inching == true)
-    {
-
-        distance_after_blackline[index] += DISTANCE_BETWEEN_NOTCHES_CM;
-
-        if (distance_after_blackline[index] >= distance_to_inch)
+        // Normalize the heading to be within [0, 360) degrees
+        if (new_heading > 360)
         {
-            inching = false;
-            distance_after_blackline[1] = 0;
-            distance_after_blackline[0] = 0;
-            stop_motor(14, 13, 12, 11);
-            turn_left(14, 13, 11, 12, 75.0);
+            new_heading = new_heading - 360;
         }
+
+        // Return the new heading after a right turn
+        return new_heading;
     }
     else
     {
-
-        if (time_of_prev_notch[index] == 0)
+        // Calculate the new heading after a left turn
+        float new_heading = current_heading - angle;
+        
+        // Normalize the heading to be within [0, 360) degrees
+        if (new_heading < 0)
         {
-            time_of_prev_notch[index] = time_of_notch;
+            new_heading = 360 + new_heading;
+        }
+        // Return the new heading after a left turn
+        return new_heading;
+    }
+}
+
+/**
+ * @brief Function for PID control of motor movement.
+ * @return True if the control is successful, false otherwise.
+ */
+bool pid_control()
+{
+    if (movement_direction == 'w')
+    {
+        // Get current heading
+        current_heading = get_heading();
+
+        // Calculate the error
+        float error = 0;
+        float left_wheel_speed = left_encoder_speed;
+        float right_wheel_speed = right_encoder_speed;
+        float wheel_speed_error = left_wheel_speed - right_wheel_speed;
+
+        // Calculate the PID
+        P = kp * error;
+        I = I + ki * error;
+        D = kd * wheel_speed_error;
+
+        float PID = P + I + D;
+
+        // Calculate the new motor speeds
+        if (PID > 0)
+        {
+            // Turn left
+            float left_motor_speed = SPEED + PID;
+            float right_motor_speed = SPEED;
+            
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else if (PID < 0)
+        {
+            // update pid to positive
+            PID = fabs(PID);
+            float left_motor_speed = SPEED;
+            float right_motor_speed = SPEED + PID;
+
+             // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
         }
         else
         {
-            double time_between_notches_s = (time_of_notch - time_of_prev_notch[index]) / 1000000.0;
-            speed[index] = (DISTANCE_BETWEEN_NOTCHES_CM) / time_between_notches_s;
-            distance[index] += DISTANCE_BETWEEN_NOTCHES_CM;
-
-            time_of_prev_notch[index] = time_of_notch;
+            // Maintain the same heading by moving straight
+            set_speed(SPEED, SPEED);
         }
+        
+        // Indicate successful PID control
+        return true;
     }
-}
-
-/**
- * @brief Callback function for GPIO interrupts.
- *
- * Called when the encoder notch is detected. (Rising Edge)
- * Calls calculate_speed() to calculate the speed of the wheel and pass the time of the notch.
- */
-void gpio_callback(uint gpio, uint32_t events)
-{
-    if ((gpio == ENCODEROUT_PIN || gpio == ENCODEROUT_PIN2) && events == GPIO_IRQ_EDGE_RISE)
+    else if (movement_direction == 's')
     {
-        calculate_speed(time_us_32(), gpio);
+        // Get current heading
+        current_heading = get_heading();
+
+        // Calculate the error
+        float error = 0;
+        float left_wheel_speed = left_encoder_speed;
+        float right_wheel_speed = right_encoder_speed;
+        float wheel_speed_error = left_wheel_speed - right_wheel_speed;
+
+        // Calculate the PID
+        P = kp * error;
+        I = I + ki * error;
+        D = kd * wheel_speed_error;
+
+        float PID = P + I + D;
+
+        // Print diagnostic information
+        printf("PID: %f\n", PID);
+        printf("Left wheel speed: %f\n", left_wheel_speed);
+        printf("Right wheel speed: %f\n", right_wheel_speed);
+        printf("heading: %f\n", current_heading);
+
+        // Calculate the new motor speeds
+        if (PID < 0)
+        {
+            // Turn left
+            float left_motor_speed = SPEED + PID;
+            float right_motor_speed = SPEED;
+
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else if (PID > 0)
+        {
+            // Change pid to positive and turn right
+            PID = fabs(PID);
+            float left_motor_speed = SPEED;
+            float right_motor_speed = SPEED + PID;
+            
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else
+        {
+            // Maintain the same heading
+            set_speed(SPEED, SPEED);
+        }
+
+        return true;
     }
-}
-
-/**
- * @brief Check if wheel is moving.
- *
- * This function is called every 50ms to check if the wheel is moving.
- * If the wheel is not moving, the speed is set to 0.
- *
- */
-bool check_wheel_moving(struct repeating_timer *t)
-{
-    //printf("Left Motor Speed: %lfcm/s\nRight Motor Speed: %lfcm/s\n", speed[0], speed[1]);
-    //printf("Left Motor Distance: %lfcm\nRight Motor Distance: %lfcm\n", distance[0], distance[1]);
-
-    // Check if distance not changed
-    if (prev_distance[0] == distance[0])
+    else if (movement_direction == 'a')
     {
-        speed[0] = 0.0;
-    }
+        // Get current heading
+        current_heading = get_heading();
 
-    if (prev_distance[1] == distance[1])
+        // Calculate the error
+        // float error = target_heading - current_heading;
+        float error = 0;
+        float left_wheel_speed = left_encoder_speed;
+        float right_wheel_speed = right_encoder_speed;
+        float wheel_speed_error = left_wheel_speed - right_wheel_speed;
+
+        // Calculate the PID
+        P = kp * error;
+        I = I + ki * error;
+        D = kd * wheel_speed_error;
+
+        float PID = P + I + D;
+
+        printf("PID: %f\n", PID);
+        printf("Left wheel speed: %f\n", left_wheel_speed);
+        printf("Right wheel speed: %f\n", right_wheel_speed);
+        printf("heading: %f\n", current_heading);
+        printf("target heading: %f\n", target_heading);
+
+        // Calculate the new motor speeds
+        if (PID > 0)
+        {
+            // Turn left
+            float left_motor_speed = SPEED + PID;
+            float right_motor_speed = SPEED;
+            
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else if (PID < 0)
+        {
+            // change pid to positive
+            PID = fabs(PID);
+            float left_motor_speed = SPEED;
+            float right_motor_speed = SPEED + PID;
+            
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else
+        {
+            // Maintain the same heading
+            set_speed(SPEED, SPEED);
+        }
+
+        float heading_difference = fabs(current_heading - target_heading);
+        if (heading_difference < 20.0)
+        {
+            stop_motors();
+        }
+
+        return true;
+    }
+    else if (movement_direction == 'd')
     {
-        speed[1] = 0.0;
+        // Get current heading
+        current_heading = get_heading();
+
+        // Calculate the error
+        float error = 0;
+        float left_wheel_speed = left_encoder_speed;
+        float right_wheel_speed = right_encoder_speed;
+        float wheel_speed_error = left_wheel_speed - right_wheel_speed;
+
+        // Calculate the PID
+        P = kp * error;
+        I = I + ki * error;
+        D = kd * wheel_speed_error;
+
+        float PID = P + I + D;
+
+        printf("PID: %f\n", PID);
+        printf("Left wheel speed: %f\n", left_wheel_speed);
+        printf("Right wheel speed: %f\n", right_wheel_speed);
+        printf("heading: %f\n", current_heading);
+        printf("target heading: %f\n", target_heading);
+
+        // Calculate the new motor speeds
+        if (PID < 0)
+        {
+            // Turn left
+            float left_motor_speed = SPEED + PID;
+            float right_motor_speed = SPEED;
+            
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else if (PID > 0)
+        {
+            // Update PID value to positive
+            PID = fabs(PID);
+            float left_motor_speed = SPEED;
+            float right_motor_speed = SPEED + PID;
+            
+            // Set the new motor speeds
+            set_speed(left_motor_speed, right_motor_speed);
+        }
+        else
+        {
+            // Maintain the same heading
+            set_speed(SPEED, SPEED);
+        }
+
+        float heading_difference = fabs(current_heading - target_heading);
+        if (heading_difference < 5.0)
+        {
+            stop_motors();
+        }
+
+        return true;
     }
-
-    prev_distance[0] = distance[0];
-    prev_distance[1] = distance[1];
-
     return true;
 }
 
-double* getSpeed(){
-    return speed;
-
-}
-
-
 /**
- * @brief Initialize GPIO pins for motor control.
- *
- * @param leftmotor_pin1   GPIO pin for the left motor, forward control.
- * @param leftmotor_pin2   GPIO pin for the left motor, reverse control.
- * @param rightmotor_pin1  GPIO pin for the right motor, forward control.
- * @param rightmotor_pin2  GPIO pin for the right motor, reverse control.
+ * @brief Function to reset various values (encoder counts, PID variables, heading, etc.).
  */
-void start_motor(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2)
+void reset_values()
 {
+    // Reset the encoder counts
+    left_encoder_count = 0;
+    right_encoder_count = 0;
 
-    gpio_init(leftmotor_pin1);
-    gpio_init(leftmotor_pin2);
-    gpio_init(rightmotor_pin1);
-    gpio_init(rightmotor_pin2);
+    // Reset the encoder speeds
+    left_encoder_speed = 0.0;
+    right_encoder_speed = 0.0;
 
-    gpio_set_dir(leftmotor_pin1, GPIO_OUT);
-    gpio_set_dir(leftmotor_pin2, GPIO_OUT);
-    gpio_set_dir(rightmotor_pin1, GPIO_OUT);
-    gpio_set_dir(rightmotor_pin2, GPIO_OUT);
+    // Reset the PID variables
+    I = 0.0;
+    P = 0.0;
+    D = 0.0;
+
+    // Reset the heading variables
+    start_heading = 0.0;
+    current_heading = 0.0;
+    target_heading = 0.0;
 }
 
 /**
- * @brief Initialize PWM for motor speed control.
- *
- * @param leftmotor_pwm_pin   GPIO pin for the left motor's PWM input.
- * @param rightmotor_pwm_pin  GPIO pin for the right motor's PWM input.
+ * @brief Function to move the robot forward.
+ * @param speed Speed of the movement.
  */
-void start_motor_pwm(int leftmotor_pwm_pin, int rightmotor_pwm_pin)
+void move_forward(float speed)
 {
+    // Reset Values
+    reset_values();
 
-    // Tell GPIO 0 and 1 they are allocated to the PWM
-    gpio_set_function(rightmotor_pwm_pin, GPIO_FUNC_PWM);
-    gpio_set_function(leftmotor_pwm_pin, GPIO_FUNC_PWM);
+    // Set the GPIO pins to high
+    gpio_put(input_1, 1);
+    gpio_put(input_2, 0);
+    gpio_put(input_3, 0);
+    gpio_put(input_4, 1);
 
-    // Find out which PWM slice is connected to GPIO 0 (it's slice 0)
-    uint slice_num_0 = pwm_gpio_to_slice_num(rightmotor_pwm_pin);
+    set_speed(speed, speed);
 
-    // Find out which PWM slice is connected to GPIO 1 (it's slice 1)
-    uint slice_num_1 = pwm_gpio_to_slice_num(leftmotor_pwm_pin);
+    // Set the PWM channels
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_A), true);
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_B), true);
 
-    pwm_set_clkdiv(slice_num_0, 100);
-    pwm_set_clkdiv(slice_num_1, 100);
-
-    pwm_set_wrap(slice_num_0, 12500);
-    pwm_set_wrap(slice_num_1, 12500);
-
-    // Right Motor
-    pwm_set_chan_level(slice_num_0, PWM_CHAN_A, 12500 / 2);
-
-    // Left Motor
-    pwm_set_chan_level(slice_num_1, PWM_CHAN_B, 12500 / 2);
-
-    // Set the PWM running for both slices
-    pwm_set_enabled(slice_num_0, true);
-    pwm_set_enabled(slice_num_1, true);
+    // Get the current heading
+    start_heading = get_heading();
+    target_heading = calculate_new_heading(start_heading, 0, false); // Maintain the same heading
+    movement_direction = 'w';
 }
 
 /**
- * @brief Stop the motors.
- *
- * This function is called to stop the motors.
- * It sets all the GPIO pins to 0.
+ * @brief Function to move the robot backward.
+ * @param speed Speed of the movement.
  */
-
-void move_forward_by_distance(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2, float distance_cm)
+void move_backward(float speed)
 {
-    inching = true;
-    distance_after_blackline[0] = 0;
-    distance_after_blackline[1] = 0;
-    distance_to_inch = distance_cm;
-    move_forward(leftmotor_pin1, leftmotor_pin2, rightmotor_pin1, rightmotor_pin2);
-}
+    // Reset Values
+    reset_values();
 
+    // Set the GPIO pins to high
+    gpio_put(input_1, 0);
+    gpio_put(input_2, 1);
+    gpio_put(input_3, 1);
+    gpio_put(input_4, 0);
 
-void stop_motor(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2)
-{
-    gpio_put(leftmotor_pin1, 0);
-    gpio_put(leftmotor_pin2, 0);
-    gpio_put(rightmotor_pin1, 0);
-    gpio_put(rightmotor_pin2, 0);
-}
+    set_speed(speed, speed);
 
-/**
- * @brief Move the robot forward.
- *
- * @param leftmotor_pin1   GPIO pin for the left motor, forward control.
- * @param leftmotor_pin2   GPIO pin for the left motor, reverse control.
- * @param rightmotor_pin1  GPIO pin for the right motor, forward control.
- * @param rightmotor_pin2  GPIO pin for the right motor, reverse control.
- */
-void move_forward(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2)
-{
-    gpio_put(leftmotor_pin1, 1);
-    gpio_put(leftmotor_pin2, 0);
-    gpio_put(rightmotor_pin1, 0);
-    gpio_put(rightmotor_pin2, 1);
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_A), true);
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_B), true);
+
+    // Get the current heading
+    start_heading = get_heading();
+    target_heading = calculate_new_heading(start_heading, 0, false); // Maintain the same heading
+    movement_direction = 's';
 }
 
 /**
- * @brief Move the robot backward.
- *
- * @param leftmotor_pin1   GPIO pin for the left motor, forward control.
- * @param leftmotor_pin2   GPIO pin for the left motor, reverse control.
- * @param rightmotor_pin1  GPIO pin for the right motor, forward control.
- * @param rightmotor_pin2  GPIO pin for the right motor, reverse control.
+ * @brief Function to turn the robot left.
+ * @param speed Speed of the turn.
+ * @param angle Angle of the turn.
  */
-void move_backward(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2)
+void turn_left(float speed, float angle)
 {
-    gpio_put(leftmotor_pin1, 0);
-    gpio_put(leftmotor_pin2, 1);
-    gpio_put(rightmotor_pin1, 1);
-    gpio_put(rightmotor_pin2, 0);
+    // Reset Values
+    reset_values();
+
+    // Set the GPIO pins to high
+    gpio_put(input_1, 0);
+    gpio_put(input_2, 1);
+    gpio_put(input_3, 0);
+    gpio_put(input_4, 1);
+
+    set_speed(speed, speed);
+
+    // Set the PWM channels
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_A), true);
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_B), true);
+
+    // Get the current heading
+    start_heading = get_heading();
+    target_heading = calculate_new_heading(start_heading, angle, true);
+    set_heading = angle;
+    movement_direction = 'a';
 }
 
 /**
- * @brief Turn the robot left.
- *
- * @param leftmotor_pin1   GPIO pin for the left motor, forward control.
- * @param leftmotor_pin2   GPIO pin for the left motor, reverse control.
- * @param rightmotor_pin1  GPIO pin for the right motor, forward control.
- * @param rightmotor_pin2  GPIO pin for the right motor, reverse control.
+ * @brief Function to turn the robot right.
+ * @param speed Speed of the turn.
+ * @param angle Angle of the turn.
  */
-void turn_left(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2, float degree)
+void turn_right(float speed, float angle)
 {
-    gpio_put(leftmotor_pin1, 0);
-    gpio_put(leftmotor_pin2, 1);
-    gpio_put(rightmotor_pin1, 0);
-    gpio_put(rightmotor_pin2, 1);
-    turning_left = true;
-    degree_to_turn = degree;
+    // Reset Values
+    reset_values();
+
+    // Set the GPIO pins to high
+    gpio_put(input_1, 1);
+    gpio_put(input_2, 0);
+    gpio_put(input_3, 1);
+    gpio_put(input_4, 0);
+
+    set_speed(speed, speed);
+
+    // Set the PWM channels
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_A), true);
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_B), true);
+
+    // Get the current heading
+    start_heading = get_heading();
+    target_heading = calculate_new_heading(start_heading, angle, false);
+    set_heading = angle;
+    movement_direction = 'd';
 }
 
 /**
- * @brief Turn the robot right.
- *
- * @param leftmotor_pin1   GPIO pin for the left motor, forward control.
- * @param leftmotor_pin2   GPIO pin for the left motor, reverse control.
- * @param rightmotor_pin1  GPIO pin for the right motor, forward control.
- * @param rightmotor_pin2  GPIO pin for the right motor, reverse control.
+ * @brief Function to stop the motors.
  */
-void turn_right(int leftmotor_pin1, int leftmotor_pin2, int rightmotor_pin1, int rightmotor_pin2, float degree)
+void stop_motors()
 {
-    gpio_put(leftmotor_pin1, 1);
-    gpio_put(leftmotor_pin2, 0);
-    gpio_put(rightmotor_pin1, 1);
-    gpio_put(rightmotor_pin2, 0);
-    turning_right = true;
-    degree_to_turn = degree;
+    // Set the GPIO pins to low
+    gpio_put(input_1, 0);
+    gpio_put(input_2, 0);
+    gpio_put(input_3, 0);
+    gpio_put(input_4, 0);
+
+    set_speed(0, 0);
+
+    // Set the PWM channels
+    pwm_set_chan_level(pwm_gpio_to_slice_num(motor_enable_pin_A), PWM_CHAN_A, 0);
+    pwm_set_chan_level(pwm_gpio_to_slice_num(motor_enable_pin_B), PWM_CHAN_A, 0);
+
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_A), false);
+    pwm_set_enabled(pwm_gpio_to_slice_num(motor_enable_pin_B), false);
+
+    reset_values();
+
+    // Reset the movement direction
+    movement_direction = 'x';
 }
 
 /**
- * @brief Set the motor speed as a percentage.
- *
- * @param speed              Speed percentage (0 to 100).
- * @param leftmotor_pwm_pin  GPIO pin for the left motor's PWM input.
- * @param rightmotor_pwm_pin GPIO pin for the right motor's PWM input.
+ * @brief Function to initialize the motors and encoder pins.
+ * @param left_motor_pin1 Pin 1 of the left motor.
+ * @param left_motor_pin2 Pin 2 of the left motor.
+ * @param right_motor_pin1 Pin 1 of the right motor.
+ * @param right_motor_pin2 Pin 2 of the right motor.
+ * @param left_motor_pwm_pin PWM pin for the left motor.
+ * @param right_motor_pwm_pin PWM pin for the right motor.
+ * @param encoder_left_pin Encoder pin for the left motor.
+ * @param encoder_right_pin Encoder pin for the right motor.
  */
-void set_speed(int speed, int leftmotor_pwm_pin, int rightmotor_pwm_pin)
+void initialise_motors(uint8_t left_motor_pin1, uint8_t left_motor_pin2, uint8_t right_motor_pin1, uint8_t right_motor_pin2, uint8_t left_motor_pwm_pin, uint8_t right_motor_pwm_pin, uint8_t encoder_left_pin, uint8_t encoder_right_pin)
 {
-    float duty_cycle = speed / 100.0;
+    // change the global variables
+    left_encoder_pin = encoder_left_pin;
+    right_encoder_pin = encoder_right_pin;
+    motor_enable_pin_A = left_motor_pwm_pin;
+    motor_enable_pin_B = right_motor_pwm_pin;
+    input_1 = left_motor_pin1;
+    input_2 = left_motor_pin2;
+    input_3 = right_motor_pin1;
+    input_4 = right_motor_pin2;
 
-    pwm_set_gpio_level(leftmotor_pwm_pin, 12500 * duty_cycle);
-    pwm_set_gpio_level(rightmotor_pwm_pin, 12500 * duty_cycle);
+    // Initialize the GPIO pins for the motors
+    gpio_init(left_encoder_pin);
+    gpio_init(right_encoder_pin);
+    gpio_init(motor_enable_pin_A);
+    gpio_init(motor_enable_pin_B);
+    gpio_init(input_1);
+    gpio_init(input_2);
+    gpio_init(input_3);
+    gpio_init(input_4);
 
-    printf("Speed set to %d%%\n", speed);
-}
+    // Set the GPIO pins to output
+    gpio_set_dir(left_encoder_pin, GPIO_IN);
+    gpio_set_dir(right_encoder_pin, GPIO_IN);
+    gpio_set_dir(input_1, GPIO_OUT);
+    gpio_set_dir(input_2, GPIO_OUT);
+    gpio_set_dir(input_3, GPIO_OUT);
+    gpio_set_dir(input_4, GPIO_OUT);
 
-/**
- * @brief Initialize the encoder pins.
- *
- * This function is called in main() to initialize the encoder pins.
- * It sets the GPIO pins as inputs and enables interrupts on rising edge.
- */
-void init_encoder(int encoder_pin, int encoder_pin2)
-{
-    gpio_init(encoder_pin);
-    gpio_init(encoder_pin2);
+    // Configure PWM
+    gpio_set_function(motor_enable_pin_A, GPIO_FUNC_PWM);
+    gpio_set_function(motor_enable_pin_B, GPIO_FUNC_PWM);
 
-    gpio_set_dir(encoder_pin, GPIO_IN);
-    gpio_set_dir(encoder_pin2, GPIO_IN);
+    uint slice_A = pwm_gpio_to_slice_num(motor_enable_pin_A);
+    uint slice_B = pwm_gpio_to_slice_num(motor_enable_pin_B);
 
-    gpio_pull_up(encoder_pin);
-    gpio_pull_up(encoder_pin2);
+    pwm_set_clkdiv(slice_A, 100.0); // set the clock divider to 100
+    pwm_set_clkdiv(slice_B, 100.0); // set the clock divider to 100
 
-    gpio_set_irq_enabled_with_callback(encoder_pin, GPIO_IRQ_EDGE_RISE, true, &interrupt_handler);
-    gpio_set_irq_enabled_with_callback(encoder_pin2, GPIO_IRQ_EDGE_RISE, true, &interrupt_handler);
+    pwm_set_wrap(slice_A, 12500); // set the wrap to 12500
+    pwm_set_wrap(slice_B, 12500); // set the wrap to 12500
+
+    pwm_set_chan_level(slice_A, PWM_CHAN_A, 12500 / 2);
+    pwm_set_chan_level(slice_B, PWM_CHAN_A, 12500 / 2);
+
+    pwm_set_enabled(slice_A, false);
+    pwm_set_enabled(slice_B, false);
+
+    // initialize magnetometer
+    initialise_magnetometer();
 }
